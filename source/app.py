@@ -37,7 +37,7 @@ else:
 
 save_dir = "snapshots/WFLW/pip_32_16_60_r18_l2_l1_10_1_nb10"
 
-my_config = importlib.import_module(config_path, package='Course_Related_2')
+my_config = importlib.import_module(config_path, package='Driver_Drowsiness_Detection_Final')
 Config = getattr(my_config, 'Config')
 cfg = Config()
 cfg.experiment_name = experiment_name
