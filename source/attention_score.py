@@ -1,10 +1,10 @@
 import time
 import pygame  # For playing audio
 import os
+import json
 
 
 class AttentionScorer:
-
     def __init__(self, t_now, ear_thresh=0, gaze_thresh=0, perclos_thresh=0.2, roll_thresh=60,
                  pitch_thresh=20, yaw_thresh=30, ear_time_thresh=4.0, gaze_time_thresh=2.,
                  pose_time_thresh=4.0, verbose=False):
@@ -38,17 +38,75 @@ class AttentionScorer:
         # Initialize pygame mixer for audio
         pygame.mixer.init()
         
-        # Load audio files
+        # Load audio files - will be overridden by config if available
         audio_dir = os.path.join(os.path.dirname(__file__), 'audio')
         self.audio_files = {
             'Semi-Closed': os.path.join(audio_dir, 'Semi-closed.mp3'),
             'Moderately Drowsy': os.path.join(audio_dir, 'Moderate_Drowsiness.mp3'),
             'Drowsy': os.path.join(audio_dir, 'Drowsiness.mp3'),
-            'Sleeping': os.path.join(audio_dir, 'Sleep.mp3')  # Use same sound for sleeping
+            'Sleeping': os.path.join(audio_dir, 'Sleep.mp3')
         }
+        self.audio_dir = audio_dir  # Store for later use
         
         # Track which alerts have been played this period
         self.alerts_played_this_period = set()
+        
+        # Load PERCLOS thresholds from config file
+        self.load_perclos_config()
+
+    def load_perclos_config(self):
+        """Load PERCLOS threshold configuration from JSON file"""
+        config_file = os.path.join(os.path.dirname(__file__), 'perclos_config.json')
+        default_config = {
+            'semi_closed_min': 0.0,
+            'semi_closed_max': 3.75,
+            'moderately_drowsy_min': 3.75,
+            'moderately_drowsy_max': 10.0,
+            'drowsy_min': 10.0,
+            'drowsy_max': 15.0,
+            'very_drowsy_min': 15.0,
+            'very_drowsy_max': 20.0,
+            'sleeping_min': 20.0,
+            'ear_thresh': 0.15,
+            'sleep_threshold': 3.0,
+            'perclos_time_period': 60,
+            'audio_files': {
+                'Semi-Closed': 'Semi-closed.mp3',
+                'Moderately Drowsy': 'Moderate_Drowsiness.mp3',
+                'Drowsy': 'Drowsiness.mp3',
+                'Sleeping': 'Sleep.mp3'
+            }
+        }
+        
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r') as f:
+                    self.perclos_config = json.load(f)
+                
+                # Override instance variables with config values
+                if 'ear_thresh' in self.perclos_config:
+                    self.ear_thresh = self.perclos_config['ear_thresh']
+                if 'sleep_threshold' in self.perclos_config:
+                    self.sleep_threshold = self.perclos_config['sleep_threshold']
+                if 'perclos_time_period' in self.perclos_config:
+                    self.perclos_time_period = self.perclos_config['perclos_time_period']
+                
+                # Load audio files from config
+                if 'audio_files' in self.perclos_config:
+                    for alert_type, filename in self.perclos_config['audio_files'].items():
+                        self.audio_files[alert_type] = os.path.join(self.audio_dir, filename)
+                    print(f"  - Loaded {len(self.perclos_config['audio_files'])} custom audio files")
+                
+                print("PERCLOS configuration loaded from file")
+                print(f"  - EAR Threshold: {self.ear_thresh}")
+                print(f"  - Sleep Threshold: {self.sleep_threshold}s")
+                print(f"  - PERCLOS Period: {self.perclos_time_period}s")
+            except Exception as e:
+                print(f"Error loading PERCLOS config: {e}. Using defaults.")
+                self.perclos_config = default_config
+        else:
+            print("PERCLOS config file not found. Using defaults.")
+            self.perclos_config = default_config
 
 
     def play_alert(self, alert_type):
@@ -138,19 +196,18 @@ class AttentionScorer:
         # compute the PERCLOS over a given time period
         perclos_score = (self.eye_closure_counter) / all_frames_numbers_in_perclos_duration
         
-        # if perclos_score >= self.perclos_thresh:  # if the PERCLOS score is higher than a threshold, tired = True
-        #     tired = True
-
-        if perclos_score < 3.75:
+        # Use dynamic thresholds from config
+        if perclos_score < self.perclos_config['semi_closed_max']:
             tired = "Awake"
-        elif 3.75<perclos_score<=10:
+        elif self.perclos_config['moderately_drowsy_min'] <= perclos_score <= self.perclos_config['moderately_drowsy_max']:
             tired = "Semi-Closed"
-        elif 10<perclos_score<=15:
+        elif self.perclos_config['drowsy_min'] <= perclos_score <= self.perclos_config['drowsy_max']:
             tired = "Moderately Drowsy"
-        elif 15<perclos_score<=20:
+        elif self.perclos_config['very_drowsy_min'] <= perclos_score <= self.perclos_config['very_drowsy_max']:
             tired = "Drowsy"
-        else:
+        elif perclos_score > self.perclos_config['sleeping_min']:
             tired = "Sleeping"
+        
         # Play appropriate alert based on drowsiness level (once per condition per period)
         self.play_alert(tired)
 
