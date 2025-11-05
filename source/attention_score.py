@@ -1,4 +1,6 @@
 import time
+import pygame  # For playing audio
+import os
 
 
 class AttentionScorer:
@@ -28,6 +30,46 @@ class AttentionScorer:
 
         self.prev_time = t_now
         self.eye_closure_counter = 0
+        
+        # Add new variables for continuous closure tracking
+        self.continuous_closure_start = None
+        self.sleep_threshold = 3.0  # 3 seconds threshold
+        
+        # Initialize pygame mixer for audio
+        pygame.mixer.init()
+        
+        # Load audio files
+        audio_dir = os.path.join(os.path.dirname(__file__), 'audio')
+        self.audio_files = {
+            'Semi-Closed': os.path.join(audio_dir, 'Semi-closed.mp3'),
+            'Moderately Drowsy': os.path.join(audio_dir, 'Moderate_Drowsiness.mp3'),
+            'Drowsy': os.path.join(audio_dir, 'Drowsiness.mp3'),
+            'Sleeping': os.path.join(audio_dir, 'Drowsiness.mp3')  # Use same sound for sleeping
+        }
+        
+        # Track last alert to prevent repeated sounds
+        self.last_alert_state = None
+        self.last_alert_time = t_now
+        self.alert_cooldown = 5.0  # Minimum 5 seconds between alerts
+
+
+    def play_alert(self, alert_type, t_now):
+        """Play alert sound if conditions are met"""
+        # Check if we should play a new alert
+        if alert_type != self.last_alert_state or (t_now - self.last_alert_time) >= self.alert_cooldown:
+            if alert_type in self.audio_files and alert_type != 'Awake':
+                try:
+                    pygame.mixer.music.load(self.audio_files[alert_type])
+                    pygame.mixer.music.play()
+                    self.last_alert_state = alert_type
+                    self.last_alert_time = t_now
+                    if self.verbose:
+                        print(f"Playing alert: {alert_type}")
+                except Exception as e:
+                    print(f"Error playing audio: {e}")
+            elif alert_type == 'Awake':
+                # Reset when driver is awake
+                self.last_alert_state = None
 
 
     def eval_scores(self, t_now, ear_score, gaze_score, head_roll, head_pitch, head_yaw):
@@ -80,9 +122,21 @@ class AttentionScorer:
 
         all_frames_numbers_in_perclos_duration = int(self.perclos_time_period * fps)
 
-        # if the ear_score is lower or equal than the threshold, increase the eye_closure_counter
+        # Track continuous eye closure
         if (ear_score is not None) and (ear_score <= self.ear_thresh):
+            if self.continuous_closure_start is None:
+                self.continuous_closure_start = t_now
+            
+            # Check if eyes have been closed continuously for more than 3 seconds
+            continuous_closure_time = t_now - self.continuous_closure_start
+            if continuous_closure_time >= self.sleep_threshold:
+                self.play_alert('Sleeping', t_now)
+                return "Sleeping", 100.0  # Return immediately with sleeping status
+            
             self.eye_closure_counter += 1
+        else:
+            # Eyes are open, reset continuous closure timer
+            self.continuous_closure_start = None
 
         # compute the PERCLOS over a given time period
         perclos_score = (self.eye_closure_counter) / all_frames_numbers_in_perclos_duration
@@ -98,6 +152,9 @@ class AttentionScorer:
             tired = "Moderately Drowsy"
         elif 15<perclos_score:
             tired = "Drowsy"
+
+        # Play appropriate alert based on drowsiness level
+        self.play_alert(tired, t_now)
 
         if delta >= self.perclos_time_period:  # at every end of the given time period, reset the counter and the timer
             self.eye_closure_counter = 0
