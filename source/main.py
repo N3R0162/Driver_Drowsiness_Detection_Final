@@ -17,6 +17,5 @@ source_radio = st.sidebar.radio("Select source:", ["Webcam"])
 if source_radio == "Webcam":
     #If it is an Ubuntu 22.04 laptop:
     app.play_webcam()
-
     #If it is a Jetson Nano, uncomment the following line:
     # app_jetson.play_webcam()

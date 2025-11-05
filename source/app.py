@@ -109,7 +109,7 @@ def play_webcam():
             st_frame = st.empty()
             #Set up parameters for the video
             t_0 = time.perf_counter()
-            score = AttentionScorer(t_now=t_0, ear_thresh=0.1, gaze_thresh=0.2, perclos_thresh=0.2, roll_thresh=15, pitch_thresh=15, yaw_thresh=15, ear_time_thresh=0.2, gaze_time_thresh=0.2, pose_time_thresh=4.0, verbose=False)
+            score = AttentionScorer(t_now=t_0, ear_thresh=0.2, gaze_thresh=0.2, perclos_thresh=0.2, roll_thresh=15, pitch_thresh=15, yaw_thresh=15, ear_time_thresh=0.2, gaze_time_thresh=0.2, pose_time_thresh=4.0, verbose=False)
             i = 0 
             time.sleep(0.01)
             print("Starting the processing loop")

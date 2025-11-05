@@ -44,32 +44,29 @@ class AttentionScorer:
             'Semi-Closed': os.path.join(audio_dir, 'Semi-closed.mp3'),
             'Moderately Drowsy': os.path.join(audio_dir, 'Moderate_Drowsiness.mp3'),
             'Drowsy': os.path.join(audio_dir, 'Drowsiness.mp3'),
-            'Sleeping': os.path.join(audio_dir, 'Drowsiness.mp3')  # Use same sound for sleeping
+            'Sleeping': os.path.join(audio_dir, 'Sleep.mp3')  # Use same sound for sleeping
         }
         
-        # Track last alert to prevent repeated sounds
-        self.last_alert_state = None
-        self.last_alert_time = t_now
-        self.alert_cooldown = 5.0  # Minimum 5 seconds between alerts
+        # Track which alerts have been played this period
+        self.alerts_played_this_period = set()
 
 
-    def play_alert(self, alert_type, t_now):
-        """Play alert sound if conditions are met"""
-        # Check if we should play a new alert
-        if alert_type != self.last_alert_state or (t_now - self.last_alert_time) >= self.alert_cooldown:
-            if alert_type in self.audio_files and alert_type != 'Awake':
-                try:
-                    pygame.mixer.music.load(self.audio_files[alert_type])
-                    pygame.mixer.music.play()
-                    self.last_alert_state = alert_type
-                    self.last_alert_time = t_now
-                    if self.verbose:
-                        print(f"Playing alert: {alert_type}")
-                except Exception as e:
-                    print(f"Error playing audio: {e}")
-            elif alert_type == 'Awake':
-                # Reset when driver is awake
-                self.last_alert_state = None
+    def play_alert(self, alert_type):
+        """Play alert sound once per condition per PERCLOS period"""
+        # Only play if not awake and haven't played this specific alert this period yet
+        if alert_type != 'Awake' and alert_type not in self.alerts_played_this_period and alert_type in self.audio_files:
+            try:
+                pygame.mixer.music.load(self.audio_files[alert_type])
+                pygame.mixer.music.play()
+                # If it is sleeping, dont mark other alerts as played
+                if alert_type == 'Sleeping':
+                    pass
+                else:
+                    self.alerts_played_this_period.add(alert_type)  # Mark this alert as played
+                if self.verbose:
+                    print(f"Playing alert: {alert_type}")
+            except Exception as e:
+                print(f"Error playing audio: {e}")
 
 
     def eval_scores(self, t_now, ear_score, gaze_score, head_roll, head_pitch, head_yaw):
@@ -130,7 +127,7 @@ class AttentionScorer:
             # Check if eyes have been closed continuously for more than 3 seconds
             continuous_closure_time = t_now - self.continuous_closure_start
             if continuous_closure_time >= self.sleep_threshold:
-                self.play_alert('Sleeping', t_now)
+                self.play_alert('Sleeping')
                 return "Sleeping", 100.0  # Return immediately with sleeping status
             
             self.eye_closure_counter += 1
@@ -150,19 +147,21 @@ class AttentionScorer:
             tired = "Semi-Closed"
         elif 10<perclos_score<=15:
             tired = "Moderately Drowsy"
-        elif 15<perclos_score:
+        elif 15<perclos_score<=20:
             tired = "Drowsy"
-
-        # Play appropriate alert based on drowsiness level
-        self.play_alert(tired, t_now)
+        else:
+            tired = "Sleeping"
+        # Play appropriate alert based on drowsiness level (once per condition per period)
+        self.play_alert(tired)
 
         if delta >= self.perclos_time_period:  # at every end of the given time period, reset the counter and the timer
             self.eye_closure_counter = 0
             self.prev_time = t_now
+            self.alerts_played_this_period.clear()  # Clear all played alerts for new period
             print("=====================================")
             print("PERCLOS score reset")
             print("tired:", tired)
             print("perclos_score:", perclos_score)
             print("=====================================")
 
-        return tired, perclos_score
+        return tired, perclos_score 
