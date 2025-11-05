@@ -40,7 +40,7 @@ python3 build.py build_ext --inplace
 ## Run:
 To run the program, execute the following command:
 ```bash
-streamlit run ./source/main.py
+streamlit run ./source/launcher.py
 ```
 
 ## License:
