@@ -1,15 +1,15 @@
 {
     "semi_closed_min": 0.0,
-    "semi_closed_max": 3.75,
-    "moderately_drowsy_min": 3.75,
-    "moderately_drowsy_max": 10.0,
-    "drowsy_min": 10.0,
+    "semi_closed_max": 0.25,
+    "moderately_drowsy_min": 0.25,
+    "moderately_drowsy_max": 12.25,
+    "drowsy_min": 12.25,
     "drowsy_max": 15.0,
     "very_drowsy_min": 15.0,
-    "very_drowsy_max": 20.25,
-    "sleeping_min": 20.25,
-    "ear_thresh": 0.15,
-    "sleep_threshold": 2.0,
+    "very_drowsy_max": 16.75,
+    "sleeping_min": 16.75,
+    "ear_thresh": 0.1,
+    "sleep_threshold": 3.0,
     "perclos_time_period": 60,
     "audio_files": {
         "Semi-Closed": "Semi-closed.mp3",
@@ -18,3 +18,4 @@
         "Sleeping": "Sleep.mp3"
     }
 }
+

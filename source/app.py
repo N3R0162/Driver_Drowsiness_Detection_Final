@@ -32,6 +32,8 @@ config_path = '.experiments.{}.{}'.format(data_name, experiment_name)
 
 if sys.platform.startswith('win'):
     video_file = 0  # Default webcam (or use 1, 2, 3 for other cameras)
+elif sys.platform.startswith('darwin'):
+    video_file = 0  # Default webcam for macOS
 else:
     video_file = "/dev/video2"  #Camera_path for unix
 
